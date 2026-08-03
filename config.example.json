@@ -1,0 +1,21 @@
+{
+  "passengers": 2,
+  "transport": "playwright",
+  "wagon_class_ids": ["K", "coupe"],
+  "sale_horizon_days": 14,
+  "boundary_probe_days": 14,
+  "request_delay_seconds": 1.5,
+  "playwright_storage_state": "data/storage-state.json",
+  "playwright_user_data_dir": "data/chrome-profile",
+  "routes": [
+    {
+      "id": "dnipro-przemysl",
+      "name": "Dnipro → Przemysl",
+      "enabled": true,
+      "from_station_id": 2210700,
+      "from_station_name": "Dnipro-Holovnyi",
+      "to_station_id": 5100096,
+      "to_station_name": "Przemysl"
+    }
+  ]
+}

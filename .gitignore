@@ -1,0 +1,10 @@
+.env
+config.json
+data/
+*.log
+__pycache__/
+.pytest_cache/
+.venv/
+.playwright-cli/
+node_modules/
+*.plist
