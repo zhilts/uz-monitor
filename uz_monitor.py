@@ -356,9 +356,13 @@ def analyze_coupe_wagons(
             compartments.setdefault(compartment, []).append(seat)
         for compartment, compartment_seats in compartments.items():
             if len(compartment_seats) >= passengers:
+                labeled_seats = [
+                    format_seat(seat, international_numbering)
+                    for seat in compartment_seats
+                ]
                 matching_compartments.append(
                     f"car {wagon_number}, compartment {compartment}: "
-                    + ", ".join(map(str, compartment_seats))
+                    + ", ".join(labeled_seats)
                 )
 
     return (
@@ -607,14 +611,31 @@ def apply_cached_seat_details(
     return updated
 
 
-def summarize_compartments(details: str, limit: int = 3) -> str:
-    compartments = [value.strip() for value in details.split(";") if value.strip()]
-    visible = compartments[:limit]
-    remaining = len(compartments) - len(visible)
-    summary = "; ".join(visible)
-    if remaining:
-        summary += f"; {remaining} more options"
-    return summary
+def format_seat(seat: int, international_numbering: bool) -> str:
+    if international_numbering:
+        berth = "lower" if seat % 10 in {1, 2} else "upper"
+    else:
+        berth = "lower" if seat % 2 else "upper"
+    return f"{seat} ({berth})"
+
+
+def summarize_compartments(details: str) -> str:
+    formatted = []
+    for value in details.split(";"):
+        compartment, separator, seats = value.strip().partition(":")
+        if not separator:
+            continue
+        seat_values = [seat_value.strip() for seat_value in seats.split(",")]
+        if all("(" in seat_value for seat_value in seat_values):
+            formatted.append(f"{compartment}: {', '.join(seat_values)}")
+            continue
+        seat_numbers = [int(seat_value) for seat_value in seat_values]
+        international_numbering = any(seat > 36 for seat in seat_numbers)
+        labeled_seats = []
+        for seat in seat_numbers:
+            labeled_seats.append(format_seat(seat, international_numbering))
+        formatted.append(f"{compartment}: {', '.join(labeled_seats)}")
+    return "; ".join(formatted)
 
 
 def snapshot_differences(previous: Path, current: Path) -> list[str]:
@@ -683,7 +704,7 @@ def available_snapshot_lines(path: Path) -> list[str]:
             f"{row['wagon_class']} — {value} seats"
         )
         if row.get("same_compartment") == "True":
-            details = summarize_compartments(row["same_compartment_detail"], limit=1)
+            details = summarize_compartments(row["same_compartment_detail"])
             line += f"; together: {details}"
         elif row.get("same_compartment") == "False":
             line += "; no two seats in one compartment"

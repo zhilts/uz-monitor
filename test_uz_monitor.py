@@ -76,8 +76,8 @@ class MonitorTests(unittest.TestCase):
         ])
         self.assertEqual(seats, "car 5: 1, 4, 6, 9, 10; car 7: 20")
         self.assertTrue(together)
-        self.assertIn("car 5, compartment 1: 1, 4", details)
-        self.assertIn("car 5, compartment 3: 9, 10", details)
+        self.assertIn("car 5, compartment 1: 1 (lower), 4 (upper)", details)
+        self.assertIn("car 5, compartment 3: 9 (lower), 10 (upper)", details)
 
     def test_does_not_mix_seats_from_different_compartments(self):
         _, together, details = uz_monitor.analyze_coupe_wagons([
@@ -93,7 +93,10 @@ class MonitorTests(unittest.TestCase):
         ])
         self.assertEqual(seats, "car 28: 82, 86; car 26: 56, 75")
         self.assertTrue(together)
-        self.assertEqual(details, "car 28, compartment 8: 82, 86")
+        self.assertEqual(
+            details,
+            "car 28, compartment 8: 82 (lower), 86 (upper)",
+        )
 
     def test_uses_international_mockup_for_low_uic_numbers(self):
         _, together, details = uz_monitor.analyze_coupe_wagons([
@@ -104,7 +107,10 @@ class MonitorTests(unittest.TestCase):
             },
         ])
         self.assertTrue(together)
-        self.assertEqual(details, "car 1, compartment 2: 21, 26")
+        self.assertEqual(
+            details,
+            "car 1, compartment 2: 21 (lower), 26 (upper)",
+        )
 
     def test_reuses_and_recalculates_cached_seats_when_count_is_unchanged(self):
         item = uz_monitor.Availability(
@@ -128,7 +134,7 @@ class MonitorTests(unittest.TestCase):
         self.assertTrue(result[0].same_compartment)
         self.assertEqual(
             result[0].same_compartment_detail,
-            "car 28, compartment 8: 82, 86",
+            "car 28, compartment 8: 82 (lower), 86 (upper)",
         )
 
     def test_does_not_reuse_cached_seats_when_count_changed(self):
@@ -233,7 +239,10 @@ class MonitorTests(unittest.TestCase):
         })
         self.assertEqual(seats, "car 4: 6, 7, 8")
         self.assertTrue(together)
-        self.assertEqual(details, "car 4, compartment 2: 6, 7, 8")
+        self.assertEqual(
+            details,
+            "car 4, compartment 2: 6 (upper), 7 (lower), 8 (upper)",
+        )
 
     def test_assigns_seats_to_the_matching_train(self):
         payload = {"direct": [
@@ -270,14 +279,21 @@ class MonitorTests(unittest.TestCase):
         self.assertEqual(config["database"], "data/kyiv-dnipro/uz-monitor.sqlite3")
         self.assertEqual(config["snapshot_dir"], "data/kyiv-dnipro/snapshots")
 
-    def test_telegram_compartment_summary_is_bounded(self):
+    def test_telegram_compartment_summary_lists_all_options(self):
         details = "; ".join(
             f"car 1, compartment {number}: 1, 2" for number in range(1, 6)
         )
         summary = uz_monitor.summarize_compartments(details)
-        self.assertIn("compartment 3", summary)
-        self.assertNotIn("compartment 4", summary)
-        self.assertTrue(summary.endswith("2 more options"))
+        self.assertIn("compartment 5", summary)
+        self.assertNotIn("more options", summary)
+        self.assertIn("1 (lower), 2 (upper)", summary)
+
+    def test_formats_international_lower_and_upper_berths(self):
+        summary = uz_monitor.summarize_compartments(
+            "car 31, compartment 9: 91, 92, 95, 96"
+        )
+        self.assertIn("91 (lower), 92 (lower)", summary)
+        self.assertIn("95 (upper), 96 (upper)", summary)
 
     def test_dates_include_one_boundary_probe(self):
         today = date.today()
