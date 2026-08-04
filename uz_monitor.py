@@ -77,6 +77,28 @@ def node_binary() -> str:
     raise ApiError("Node.js not found; install Node.js or set NODE_BINARY")
 
 
+def playwright_profile_path(config: dict[str, Any]) -> Path:
+    profile = Path(config.get("playwright_user_data_dir", "data/chrome-profile"))
+    return profile if profile.is_absolute() else Path(__file__).parent / profile
+
+
+def playwright_profile_in_use(config: dict[str, Any]) -> bool:
+    lock = playwright_profile_path(config) / "SingletonLock"
+    if not lock.is_symlink():
+        return lock.exists()
+    try:
+        pid = int(os.readlink(lock).rsplit("-", 1)[1])
+    except (OSError, ValueError, IndexError):
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
 class RecaptchaRequired(ApiError):
     def __init__(self, url: str):
         super().__init__("UZ requires reCAPTCHA")
@@ -731,9 +753,7 @@ def playwright_trips(
     storage_state = Path(config["playwright_storage_state"])
     if not storage_state.is_absolute():
         storage_state = project_dir / storage_state
-    user_data_dir = Path(config.get("playwright_user_data_dir", "data/chrome-profile"))
-    if not user_data_dir.is_absolute():
-        user_data_dir = project_dir / user_data_dir
+    user_data_dir = playwright_profile_path(config)
     payload = {
         "dates": travel_dates,
         "from_station_id": config["from_station_id"],
@@ -793,6 +813,19 @@ def run_once(config: dict[str, Any]) -> int:
 
 
 def run_route_once(config: dict[str, Any]) -> int:
+    transport = config.get("transport", "api")
+    if transport == "playwright" and playwright_profile_in_use(config):
+        route_name = config.get("name", "route")
+        telegram(
+            f"UZ scan skipped ({route_name}): the interactive browser session "
+            "is open. Use /close to resume scheduled monitoring or /scan to "
+            "close it and scan now."
+        )
+        print(
+            f"{utc_now()}: {route_name}: "
+            "skipped; interactive browser session is open"
+        )
+        return 0
     db_path = Path(config["database"])
     if not db_path.is_absolute():
         db_path = Path(__file__).parent / db_path
@@ -810,7 +843,6 @@ def run_route_once(config: dict[str, Any]) -> int:
     cached_availability = load_cached_availability(snapshot_dir)
 
     try:
-        transport = config.get("transport", "api")
         if transport == "playwright":
             travel_dates = configured_dates(config)
             trip_results = playwright_trips(config, travel_dates, cached_availability)

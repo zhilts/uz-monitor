@@ -26,11 +26,15 @@ LOCK_FILE = PROJECT_DIR / "data/telegram-command.lock"
 BOT_COMMANDS = [
     {"command": "status", "description": "Show current availability"},
     {"command": "session", "description": "Open the monitor's UZ session"},
+    {"command": "close", "description": "Close the monitor's UZ session"},
     {"command": "scan", "description": "Run an exact-seat scan"},
     {"command": "help", "description": "Show commands and buttons"},
 ]
 MENU_KEYBOARD = {
-    "keyboard": [[{"text": "/status"}, {"text": "/session"}], [{"text": "/scan"}]],
+    "keyboard": [
+        [{"text": "/status"}, {"text": "/session"}],
+        [{"text": "/close"}, {"text": "/scan"}],
+    ],
     "resize_keyboard": True,
     "is_persistent": True,
     "input_field_placeholder": "Choose a UZ monitor action",
@@ -109,6 +113,7 @@ def send_menu() -> None:
                 "UZ monitor commands:\n"
                 "/status — show all current availability\n"
                 "/session — open the monitor's UZ browser session\n"
+                "/close — close the monitor browser without scanning\n"
                 "/scan — close the monitor browser and refresh exact seats"
             ),
             "reply_markup": json.dumps(MENU_KEYBOARD),
@@ -124,6 +129,9 @@ def install_menu() -> None:
 def open_verification(
     config: dict[str, Any], route_id: str | None, requested_date: str | None
 ) -> None:
+    if uz_monitor.playwright_profile_in_use(config):
+        uz_monitor.telegram("UZ browser session is already open.")
+        return
     route = choose_route(config, route_id)
     travel_date = choose_date(config, route, requested_date)
     date.fromisoformat(travel_date)
@@ -150,25 +158,43 @@ def open_verification(
 
 
 def stop_monitor_browser(profile: Path) -> None:
-    output = subprocess.run(
-        ["ps", "-axo", "pid=,command="],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
     marker = f"--user-data-dir={profile}"
-    for line in output.splitlines():
-        if marker not in line or "Google Chrome Helper" in line:
-            continue
-        pid_text, _, command = line.strip().partition(" ")
-        if "/Google Chrome " in command:
-            os.kill(int(pid_text), signal.SIGTERM)
+    def matching_pids() -> list[int]:
+        output = subprocess.run(
+            ["ps", "-axo", "pid=,command="],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        return [
+            int(line.strip().partition(" ")[0])
+            for line in output.splitlines()
+            if marker in line and "telegram_commands.py" not in line
+        ]
+
+    pids = matching_pids()
+    for pid in pids:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
     for _ in range(20):
-        if marker not in subprocess.run(
-            ["ps", "-axo", "command="], capture_output=True, text=True, check=True
-        ).stdout:
-            return
+        if not matching_pids():
+            break
         time.sleep(0.25)
+    for pid in matching_pids():
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    for _ in range(20):
+        if not matching_pids():
+            break
+        time.sleep(0.25)
+    if matching_pids():
+        raise RuntimeError("Could not stop the monitor browser")
+    for name in ("SingletonLock", "SingletonCookie", "SingletonSocket"):
+        (profile / name).unlink(missing_ok=True)
 
 
 def force_scan(config: dict[str, Any]) -> None:
@@ -181,12 +207,21 @@ def force_scan(config: dict[str, Any]) -> None:
         uz_monitor.telegram(f"UZ exact-seat scan failed with exit code {result}.")
 
 
+def close_session(config: dict[str, Any]) -> None:
+    stop_monitor_browser(profile_path(config))
+    uz_monitor.telegram(
+        "UZ browser session closed. Scheduled monitoring can use the profile again."
+    )
+
+
 def handle_command(config: dict[str, Any], text: str) -> None:
     command, _ = parse_command(text)
     if command == "/status":
         send_status(config)
     elif command == "/session":
         open_verification(config, None, None)
+    elif command == "/close":
+        close_session(config)
     elif command == "/scan":
         force_scan(config)
     elif command in {"/help", "/start", "/menu"}:

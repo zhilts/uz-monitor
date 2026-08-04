@@ -92,6 +92,7 @@ The optional Telegram command listener accepts messages only from
 ```text
 /status
 /session
+/close
 /scan
 ```
 
@@ -106,6 +107,11 @@ profile on the selected UZ search. Browse normally or complete
 the account verification in Chrome, then send `/scan`. The scan closes that
 Chrome instance, refreshes exact seats without using the cache, and sends the
 full current availability to Telegram.
+
+While `/session` is open, scheduled runs skip safely because Chrome allows only
+one process to use a profile. Use `/close` to close the browser without scanning;
+the next scheduled run will then proceed normally. Every skipped scheduled run
+sends a Telegram reminder with these options.
 
 The Telegram listener uses long polling, so commands normally arrive immediately.
 Run `./install-telegram-service.sh` to create a user-specific LaunchAgent locally,

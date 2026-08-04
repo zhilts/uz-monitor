@@ -12,9 +12,30 @@ import telegram_commands
 
 
 class MonitorTests(unittest.TestCase):
+    def test_detects_live_playwright_profile_lock(self):
+        with tempfile.TemporaryDirectory() as directory:
+            profile = Path(directory)
+            (profile / "SingletonLock").symlink_to(f"test-host-{os.getpid()}")
+            self.assertTrue(
+                uz_monitor.playwright_profile_in_use(
+                    {"playwright_user_data_dir": str(profile)}
+                )
+            )
+
+    def test_ignores_stale_playwright_profile_lock(self):
+        with tempfile.TemporaryDirectory() as directory:
+            profile = Path(directory)
+            (profile / "SingletonLock").symlink_to("test-host-999999999")
+            self.assertFalse(
+                uz_monitor.playwright_profile_in_use(
+                    {"playwright_user_data_dir": str(profile)}
+                )
+            )
+
     def test_parses_telegram_commands_and_optional_bot_name(self):
         self.assertEqual(telegram_commands.parse_command("/status@uz_bot"), ("/status", []))
         self.assertEqual(telegram_commands.parse_command("/session"), ("/session", []))
+        self.assertEqual(telegram_commands.parse_command("/close"), ("/close", []))
 
     def test_http_441_recaptcha_is_recognized(self):
         client = uz_monitor.UzClient("test-session")
