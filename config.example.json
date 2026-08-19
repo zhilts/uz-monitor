@@ -1,6 +1,7 @@
 {
   "passengers": 2,
   "transport": "playwright",
+  "exact_seat_checks_enabled": true,
   "wagon_class_ids": ["K", "coupe"],
   "sale_horizon_days": 14,
   "boundary_probe_days": 14,

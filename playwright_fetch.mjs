@@ -38,6 +38,9 @@ async function searchDate(page, config, travelDate) {
     const payload = await response.json();
     const result = { travel_date: travelDate, status: response.status(), payload };
     const eligibleTrips = (payload.direct ?? []).filter((trip) => {
+      if (!config.exact_seat_checks_enabled) {
+        return false;
+      }
       const coupe = (trip.train?.wagon_classes ?? []).find((wagon) =>
         ["\u041a", "K", "coupe"].includes(String(wagon.id)),
       );

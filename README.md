@@ -15,6 +15,9 @@ The monitor never purchases or reserves tickets.
 - sends Telegram notifications with both the diff and current availability
 - keeps a persistent Chrome profile in `data/chrome-profile`
 
+Set `exact_seat_checks_enabled` to `false` to monitor only aggregate coupe
+availability without requesting wagon or seat details.
+
 By default, each route checks the next 14 days plus one boundary date to detect
 changes to the sales window. Set `travel_dates` on a route to monitor only
 specific dates while debugging.

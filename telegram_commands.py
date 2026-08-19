@@ -198,6 +198,11 @@ def stop_monitor_browser(profile: Path) -> None:
 
 
 def force_scan(config: dict[str, Any]) -> None:
+    if not config.get("exact_seat_checks_enabled", True):
+        uz_monitor.telegram(
+            "UZ exact-seat checks are disabled in the local configuration."
+        )
+        return
     stop_monitor_browser(profile_path(config))
     config["force_seat_check"] = True
     uz_monitor.telegram("UZ exact-seat scan started.")

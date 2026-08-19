@@ -783,6 +783,9 @@ def playwright_trips(
         "user_data_dir": str(user_data_dir),
         "request_delay_ms": int(float(config.get("request_delay_seconds", 1.5)) * 1000),
         "passengers": int(config.get("passengers", 2)),
+        "exact_seat_checks_enabled": bool(
+            config.get("exact_seat_checks_enabled", True)
+        ),
         "cached_availability": {
             f"{travel_date}|{train_number}": int(row["free_seats"])
             for (travel_date, train_number, _), row in cached.items()
@@ -904,11 +907,12 @@ def run_route_once(config: dict[str, Any]) -> int:
                     int(config.get("passengers", 2)),
                     seat_check_errors_by_trip,
                 )
-                items = apply_cached_seat_details(
-                    items,
-                    cached_availability,
-                    int(config.get("passengers", 2)),
-                )
+                if config.get("exact_seat_checks_enabled", True):
+                    items = apply_cached_seat_details(
+                        items,
+                        cached_availability,
+                        int(config.get("passengers", 2)),
+                    )
                 status = "available" if any(item.free_seats for item in items) else "no_coupe"
                 if payload.get("not_on_sale"):
                     status = "not_on_sale"
