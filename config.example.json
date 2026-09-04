@@ -5,7 +5,8 @@
   "wagon_class_ids": ["K", "coupe"],
   "sale_horizon_days": 14,
   "boundary_probe_days": 14,
-  "request_delay_seconds": 1.5,
+  "request_delay_seconds": 12,
+  "request_jitter_seconds": 4,
   "playwright_storage_state": "data/storage-state.json",
   "playwright_user_data_dir": "data/chrome-profile",
   "routes": [

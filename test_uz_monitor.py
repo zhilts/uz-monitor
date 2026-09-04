@@ -12,6 +12,20 @@ import telegram_commands
 
 
 class MonitorTests(unittest.TestCase):
+    def test_request_timing_enforces_safe_minimum(self):
+        self.assertEqual(
+            uz_monitor.request_timing_ms(
+                {"request_delay_seconds": 1.5, "request_jitter_seconds": -2}
+            ),
+            (10_000, 0),
+        )
+        self.assertEqual(
+            uz_monitor.request_timing_ms(
+                {"request_delay_seconds": 12, "request_jitter_seconds": 4}
+            ),
+            (12_000, 4_000),
+        )
+
     def test_detects_live_playwright_profile_lock(self):
         with tempfile.TemporaryDirectory() as directory:
             profile = Path(directory)

@@ -1,5 +1,10 @@
 # UZ ticket availability monitor
 
+> **Project status: archived.** The original monitoring objective was completed
+> on 2026-09-04. Scheduled monitoring and the Telegram listener are intentionally
+> stopped. The repository remains available as a reference and can be reactivated
+> using the setup instructions below.
+
 Read-only monitor for direct Ukrainian Railways trains. Playwright runs Chrome
 headlessly, opens the official UZ search page, and captures its JSON responses.
 The monitor never purchases or reserves tickets.
@@ -18,9 +23,27 @@ The monitor never purchases or reserves tickets.
 Set `exact_seat_checks_enabled` to `false` to monitor only aggregate coupe
 availability without requesting wagon or seat details.
 
+Full page loads are rate-limited to a minimum interval of 10 seconds. The
+recommended configuration uses 12 seconds plus up to 4 seconds of random jitter
+between dates. Do not reduce this interval: each page load can generate several
+requests inside the UZ web application.
+
 By default, each route checks the next 14 days plus one boundary date to detect
 changes to the sales window. Set `travel_dates` on a route to monitor only
 specific dates while debugging.
+
+## Installation
+
+Requirements: macOS, Python 3.9 or newer, Node.js with npm, and Google Chrome.
+
+```bash
+npm install
+```
+
+Create an ignored `.env` file if Telegram notifications are needed, then adjust
+the ignored `config.json` for the routes to monitor. Runtime databases, CSV
+snapshots, browser profiles, logs, configuration, and secrets remain local and
+are excluded from Git.
 
 ## Configuration
 
@@ -71,8 +94,8 @@ one scan, saves updated snapshots, and sends Telegram updates.
 
 ## Scheduled runs
 
-A five-minute interval is suitable for initial data collection. In n8n, use a
-Schedule Trigger and Execute Command:
+An hourly interval avoids excessive traffic while checking the full date window.
+In n8n, use a Schedule Trigger and Execute Command:
 
 Run `./run-once.sh` from the project directory.
 
@@ -124,6 +147,17 @@ stored in Git. For a foreground run:
 ```bash
 ./telegram-commands.sh
 ```
+
+Stop and remove the local LaunchAgent with:
+
+```bash
+./uninstall-telegram-service.sh
+```
+
+To reactivate the archived monitor, install dependencies, create the ignored
+local configuration and environment files, install the Telegram service if
+needed, and add `run-once.sh` to a scheduler. Keep the documented request
+intervals and use no more than one scheduled run per hour.
 
 ## reCAPTCHA
 

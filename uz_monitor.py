@@ -765,6 +765,12 @@ def configured_dates(config: dict[str, Any]) -> list[str]:
     return dates
 
 
+def request_timing_ms(config: dict[str, Any]) -> tuple[int, int]:
+    delay_ms = int(max(float(config.get("request_delay_seconds", 12)), 10) * 1000)
+    jitter_ms = int(max(float(config.get("request_jitter_seconds", 4)), 0) * 1000)
+    return delay_ms, jitter_ms
+
+
 def playwright_trips(
     config: dict[str, Any],
     travel_dates: list[str],
@@ -775,13 +781,15 @@ def playwright_trips(
     if not storage_state.is_absolute():
         storage_state = project_dir / storage_state
     user_data_dir = playwright_profile_path(config)
+    request_delay_ms, request_jitter_ms = request_timing_ms(config)
     payload = {
         "dates": travel_dates,
         "from_station_id": config["from_station_id"],
         "to_station_id": config["to_station_id"],
         "storage_state": str(storage_state),
         "user_data_dir": str(user_data_dir),
-        "request_delay_ms": int(float(config.get("request_delay_seconds", 1.5)) * 1000),
+        "request_delay_ms": request_delay_ms,
+        "request_jitter_ms": request_jitter_ms,
         "passengers": int(config.get("passengers", 2)),
         "exact_seat_checks_enabled": bool(
             config.get("exact_seat_checks_enabled", True)

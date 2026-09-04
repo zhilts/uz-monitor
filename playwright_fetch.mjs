@@ -130,7 +130,8 @@ async function main() {
         });
       }
       if (index + 1 < config.dates.length && config.request_delay_ms > 0) {
-        await page.waitForTimeout(config.request_delay_ms);
+        const jitter = Math.random() * config.request_jitter_ms;
+        await page.waitForTimeout(config.request_delay_ms + jitter);
       }
     }
     await context.storageState({ path: config.storage_state });
